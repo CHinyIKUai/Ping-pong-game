@@ -1,4 +1,6 @@
 from pygame import *
+import pygame.font
+import random
 
 class GameSprite(sprite.Sprite):
     #class constructor
@@ -6,7 +8,7 @@ class GameSprite(sprite.Sprite):
         super().__init__() #sprite.Sprite.__init__(self)
         self.image = transform.scale(image.load(player_image), (size_x, size_y))
         self.speed = player_speed
- 
+
         #every sprite must have the rect property – the rectangle it is fitted in
         self.rect = self.image.get_rect()
         self.rect.x = player_x
@@ -16,7 +18,7 @@ class GameSprite(sprite.Sprite):
     def reset(self):
         window.blit(self.image, (self.rect.x, self.rect.y))
 
-#child clasws
+#child class
 class Paddle (GameSprite):
     #method to control the sprite with arrow keys
     def update_right(self):
@@ -39,14 +41,26 @@ win_height = 500
 window = display.set_mode((win_width, win_height))
 window.fill(BLUE)
 
+# Create a court background
+background = Surface((win_width, win_height))
+background.fill((0, 128, 0))  # Set green as background color
+
+# Draw court boundaries
+pygame.draw.rect(background, (255, 255, 255), (0, 0, win_width, 10))  # Top boundary
+pygame.draw.rect(background, (255, 255, 255), (0, win_height - 10, win_width, 10))  # Bottom boundary
+
+# Draw center line
+pygame.draw.line(background, (255, 255, 255), (win_width // 2, 0), (win_width // 2, win_height), 2)
+
+
 #create sprites (paddle and balls)
 paddleA_img = "Paddle-blue.png"
 paddleB_img = "paddle-red.png"
 ball_img = "ball.png"
 
-paddleLeft = Paddle (paddleA_img, 10, 200, 100, 150, 50)
-paddleRight = Paddle (paddleB_img, 450, 200, 200, 150, 50)
-ball = GameSprite(ball_img, 330, 200, 50, 50, 50)
+paddleLeft = Paddle (paddleA_img, 0, 200, 100, 150, 5)
+paddleRight = Paddle (paddleB_img, win_width - 100, 200, 150, 150, 5)
+ball = GameSprite(ball_img, 330, 200, 50, 50, 2)
 
 
 #game loop
@@ -56,43 +70,70 @@ clock = time.Clock()
 FPS = 60
 
 #fonts
-font.init()
-font = font.Font(None, 35)
+pygame.font.init()
+font = pygame.font.Font(None, 35)
 lose1 = font.render('BLUE PLAYER LOSE!', True, (180, 0, 0))
 lose2 = font.render('RED PLAYER LOSE!', True, (180, 0, 0))
 
-speed_x = 10
-speed_y = 10
+
+BLUE_SCORE = 0
+RED_SCORE = 0
+font_score = pygame.font.Font(None, 30)
+blue_board = font_score.render('BLUE: ' + str(BLUE_SCORE), True, (0, 0, 0))
+red_board = font_score.render('RED: ' + str(RED_SCORE), True, (0, 0, 0))
+
+# Randomly determine the initial direction and speed of the ball
+initial_direction = random.choice([-1, 1])  # Randomly choose -1 (left) or 1 (right)
+speed_x = 3
+speed_y = 3
 
 while game:
     for e in event.get():
-        if e.type == QUIT:
+        if e.type ==QUIT:
             game = False
 
     if finish != True:
         window.fill (BLUE)
+        window.blit(background, (0, 0))
         paddleLeft.update_left()
         paddleRight.update_right()
 
         ball.rect.x += speed_x
         ball.rect.y += speed_y
 
-        if sprite.collide_rect(paddleLeft, ball) or sprite.collide_rect(paddleRight, ball):
+        # Score board for both players
+        window.blit(blue_board, (10, 10))
+        window.blit(red_board, (win_width - 80, 10))
+
+        # Ball bounces when hit the paddle
+        if sprite.collide_rect(paddleLeft, ball) and speed_x < 0:
+            BLUE_SCORE += 1
+            blue_board = font_score.render('BLUE: ' + str(BLUE_SCORE), True, (0, 0, 0))
+            # Randomize the angle of bounce by adjusting speed_y
             speed_x *= -1
             speed_y *= 1
 
-        #ball bounces when hit the up or bottom wall
-        if ball.rect.y > win_height-50 or ball.rect.y < 0:
+        if sprite.collide_rect(paddleRight, ball) and speed_x > 0:
+            RED_SCORE += 1
+            red_board = font_score.render('RED: ' + str(RED_SCORE), True, (0, 0, 0))
+            # Randomize the angle of bounce by adjusting speed_y
+            speed_x *= -1
+            speed_y *= 1
+
+        # Ball bounces when hit the top or bottom wall
+        if ball.rect.y <= 10 or ball.rect.y >= win_height - 50:
             speed_y *= -1
 
         #if ball flies behind this paddle, display loss condition for player left
         if ball.rect.x < 0:
-            finish = False
+            finish = True
+            game_over = True
             window.blit(lose1, (200, 200))
 
         #if the ball flies behind this paddle, display loss condition for player right
         if ball.rect.x > win_width:
-            finish = False
+            finish = True
+            game_over = True
             window.blit(lose2, (200, 200))
 
         paddleLeft.reset()
